@@ -449,6 +449,7 @@ def verify_evidence_on_chain(
     rpc_url: str = DEFAULT_RPC_URL,
     deployment_path: str = DEPLOYMENT_FILE,
     receipt_path: str = RECEIPT_FILE,
+    search_response_path: Optional[str] = None,
 ) -> dict:
     """
     Execute comprehensive multi-layer verification:
@@ -468,12 +469,15 @@ def verify_evidence_on_chain(
     evidence_hash = hash_evidence(evidence)
 
     # 1. Search response provenance check
-    response_file = (
-        "phase0_visual_matches.json"
-        if evidence.get("search_type") == "visual_matches"
-        else "phase0_exact_matches.json"
-    )
-    resp_path = os.path.join("output", response_file)
+    if search_response_path is None:
+        response_file = (
+            "phase0_visual_matches.json"
+            if evidence.get("search_type") == "visual_matches"
+            else "phase0_exact_matches.json"
+        )
+        resp_path = os.path.join("output", response_file)
+    else:
+        resp_path = search_response_path
     actual_search_hash = compute_search_response_sha256(resp_path) if os.path.exists(resp_path) else evidence.get("search_response_sha256")
     search_provenance_valid = (actual_search_hash == evidence.get("search_response_sha256"))
 

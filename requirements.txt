@@ -1,9 +1,7 @@
-serpapi
-python-dotenv
-requests
-Pillow
-numpy
-opencv-python
+serpapi==1.1.0
+python-dotenv==1.2.3
+Pillow==12.3.0
+numpy==1.26.4
+opencv-python==4.11.0.86
 mediapipe==0.10.21
-web3
-py-solc-x
+web3==8.0.0

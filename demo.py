@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 from face_processor import process_face
 from reverse_search import reverse_image_search
 from evidence_manager import (

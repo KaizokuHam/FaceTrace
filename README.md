@@ -143,8 +143,10 @@ npm ci
 Create `.env` in the project root:
 ```ini
 SERPAPI_API_KEY=your_serpapi_key_here
+SEPOLIA_RPC_URL=your_sepolia_rpc_url_here
+SEPOLIA_PRIVATE_KEY=your_testnet_private_key_here
 ```
-*(A `.env.example` file is provided in the repository.)*
+The two Sepolia values are optional and only needed for the opt-in public-testnet commands. Never use a wallet containing mainnet funds. A placeholder-only `.env.example` is provided.
 
 ---
 
@@ -176,6 +178,18 @@ python blockchain_cli.py verify
 # Run multi-case tamper test
 python blockchain_cli.py tamper-test
 ```
+
+### Optional Sepolia Deployment
+
+The local Hardhat flow remains the default. To attest the same Merkle root publicly on Ethereum Sepolia, configure `SEPOLIA_RPC_URL` and `SEPOLIA_PRIVATE_KEY` in the ignored `.env`, then run:
+
+```bash
+python blockchain_cli.py deploy --network sepolia
+python blockchain_cli.py attest --network sepolia
+python blockchain_cli.py verify --network sepolia
+```
+
+Sepolia operations enforce chain ID `11155111`, derive the deployer from the configured testnet key, check its balance before writes, and sign transactions locally. A zero or insufficient balance stops with `BLOCKED_ON_FUNDS` before broadcasting. Deployment and verification metadata are written separately to `output/deployment_sepolia.json` and `output/verification_receipt_sepolia.json`; successful writes print public Sepolia Etherscan address and transaction URLs. The private key is never printed or persisted.
 
 ---
 
@@ -222,6 +236,8 @@ All outputs are saved to the `output/` directory (gitignored):
 - `output/merkle_evidence.json`: 10 canonical leaves, Merkle root, and inclusion proofs.
 - `output/deployment.json`: Active registry contract address and deployment transaction hash.
 - `output/verification_receipt.json`: Portable audit receipt including all hashes, tx receipts, and proof verification statuses.
+- `output/deployment_sepolia.json`: Optional Sepolia deployment and attestation metadata.
+- `output/verification_receipt_sepolia.json`: Optional Sepolia re-verification receipt.
 
 ---
 

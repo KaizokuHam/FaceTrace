@@ -1,0 +1,9 @@
+serpapi
+python-dotenv
+requests
+Pillow
+numpy
+opencv-python
+mediapipe==0.10.21
+web3
+py-solc-x

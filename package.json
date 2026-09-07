@@ -1,17 +1,19 @@
 {
-  "name": "hh_goa",
+  "name": "facetrace",
   "version": "1.0.0",
-  "description": "",
+  "description": "Tamper-evident social-media provenance from a face scan",
   "main": "hardhat.config.js",
   "directories": {
     "example": "examples"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "hardhat compile",
+    "test": "python test_phase1.py && python test_phase3_4.py && python test_differentiators.py"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "devDependencies": {
     "hardhat": "^3.15.0"

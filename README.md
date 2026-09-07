@@ -1,12 +1,12 @@
 # FaceTrace
 
-### Tamper-Evident Social Media Provenance from a Face Scan
+### Tamper-evident social-media provenance from a face scan
 
 ---
 
 ## 1. Problem Overview
 
-**Hacker House Goa 2026 — Task 3** asks for an end-to-end pipeline that detects and encodes a face, finds a matching social-media post through genuine web search, fingerprints the discovered evidence, attests a commitment on a blockchain, and later re-verifies it.
+FaceTrace is a verifiable evidence pipeline for **Hacker House Goa 2026 — Task 3**. It detects and encodes a face, discovers a public social-media result through genuine web search, binds the resulting evidence into a Merkle tree, anchors only the root on an EVM chain, and later recomputes the entire proof.
 1. **Face Scan & Feature Extraction**: Process a local input image, detect a face, and generate a deterministic facial representation.
 2. **Reverse Image Search & Social Discovery**: Execute a live reverse image search over public web indexes to dynamically discover genuine social media posts featuring the face.
 3. **Cryptographic Provenance**: Bind the source image, facial encoding, raw search response, and the selected social post into a tamper-evident evidence structure.
@@ -95,7 +95,8 @@ Leaves are computed as $\text{SHA256}(\text{UTF8}(\text{field\_name} + \text{":"
 
 ## 4. Blockchain Architecture & Privacy
 
-- **Network**: Local Hardhat EVM (Chain ID `31337`). The official task specification permits local/simulated blockchain environments.
+- **Default network**: Local Hardhat EVM (chain ID `31337`) for deterministic, zero-cost reproduction.
+- **Optional public network**: Ethereum Sepolia (chain ID `11155111`) using locally signed transactions and an explicit preflight balance check.
 - **Smart Contract**: `VerificationRegistry.sol` (Solidity `^0.8.20`).
   - `attest(bytes32 evidenceHash)`: Records the commitment with `block.timestamp`. Emits `EvidenceAttested(evidenceHash, msg.sender, timestamp)`.
   - `exists(bytes32 commitment)`: Constant lookup returning whether a commitment was attested.
@@ -106,6 +107,14 @@ Leaves are computed as $\text{SHA256}(\text{UTF8}(\text{field\_name} + \text{":"
   - Only a 32-byte Merkle root (`bytes32`) is committed to the blockchain.
 
 The blockchain records that a particular evidence commitment existed by a block timestamp and allows later integrity checks. It does **not** prove a person's real-world identity, the truth of social content, the authenticity of a social account, or the correctness of Google Lens results.
+
+### Confirmed public deployment
+
+- Registry: [`0xfBd087eB04b071b41273ADA33A3bA1b8f152CDB7`](https://sepolia.etherscan.io/address/0xfBd087eB04b071b41273ADA33A3bA1b8f152CDB7)
+- Deployment transaction: [`0xf82b…b3d4`](https://sepolia.etherscan.io/tx/0xf82b13a5ad94939987746bb9b6dc566bf55f1ce6a975e8b77b4bb3494712b3d4)
+- Attestation transaction: [`0xd886…1f2`](https://sepolia.etherscan.io/tx/0xd886165eaed339545d57c23507d36187007dc19cc437d5645038bc9090ea41f2)
+
+The public contract and transactions are independently inspectable; the ignored local receipt contains the complete proof material.
 
 ---
 
@@ -128,7 +137,7 @@ Disk manifests are never modified during tamper tests.
 
 ### Prerequisites
 - Python 3.10+
-- Node.js 18+ and npm
+- Node.js 22.13+ and npm (required by the pinned Hardhat release)
 
 ### 1. Install Dependencies
 ```bash
@@ -143,8 +152,10 @@ npm ci
 Create `.env` in the project root:
 ```ini
 SERPAPI_API_KEY=your_serpapi_key_here
+SEPOLIA_RPC_URL=your_sepolia_rpc_url_here
+SEPOLIA_PRIVATE_KEY=your_testnet_private_key_here
 ```
-*(A `.env.example` file is provided in the repository.)*
+The two Sepolia values are optional and only needed for the opt-in public-testnet commands. Never use a wallet containing mainnet funds. A placeholder-only `.env.example` is provided.
 
 ---
 
@@ -177,6 +188,37 @@ python blockchain_cli.py verify
 python blockchain_cli.py tamper-test
 ```
 
+### Optional Sepolia Deployment
+
+The local Hardhat flow remains the default. To attest the same Merkle root publicly on Ethereum Sepolia, configure `SEPOLIA_RPC_URL` and `SEPOLIA_PRIVATE_KEY` in the ignored `.env`, then run:
+
+```bash
+python blockchain_cli.py deploy --network sepolia
+python blockchain_cli.py attest --network sepolia
+python blockchain_cli.py verify --network sepolia
+```
+
+Sepolia operations enforce chain ID `11155111`, derive the deployer from the configured testnet key, check its balance before writes, and sign transactions locally. A zero or insufficient balance stops with `BLOCKED_ON_FUNDS` before broadcasting. Deployment and verification metadata are written separately to `output/deployment_sepolia.json` and `output/verification_receipt_sepolia.json`; successful writes print public Sepolia Etherscan address and transaction URLs. The private key is never printed or persisted.
+
+### Benchmarks
+
+With Hardhat running, collect reproducible local measurements:
+
+```bash
+python benchmark.py examples/demo.jpg
+```
+
+Use `--live` only when you are authorized to upload the supplied face image to SerpApi and intentionally want to consume search quota. Measured results, methodology, limitations, local latency, gas use, and the real provider timing captured by the saved search artifact are documented in [BENCHMARKS.md](BENCHMARKS.md).
+
+| Measured stage | Result |
+|---|---:|
+| Face detection p50 / p95 | 30.970 / 31.794 ms |
+| Landmark encoding p50 / p95 | 31.866 / 34.146 ms |
+| Complete evidence provenance p50 / p95 | 5.485 / 7.320 ms |
+| Local replay end-to-end | 242.0 ms |
+| Provider-reported Lens processing | 2.9 s |
+| Deployment / attestation gas | 224,896 / 46,190 |
+
 ---
 
 ## 8. Automated Test Suites
@@ -206,6 +248,7 @@ reverse_search.py                 live image upload, Google Lens query, candidat
 evidence_manager.py               ranking, canonical hashes, Merkle tree and proofs
 blockchain_client.py              contract deployment, attestation, verification, tamper checks
 blockchain_cli.py                 deploy/attest/verify/tamper-test commands
+benchmark.py                      repeatable local, evidence, chain, and optional live timings
 demo.py                           final end-to-end demo
 contracts/VerificationRegistry.sol  bytes32 commitment registry
 test_phase1.py                    face and social-domain tests
@@ -222,6 +265,18 @@ All outputs are saved to the `output/` directory (gitignored):
 - `output/merkle_evidence.json`: 10 canonical leaves, Merkle root, and inclusion proofs.
 - `output/deployment.json`: Active registry contract address and deployment transaction hash.
 - `output/verification_receipt.json`: Portable audit receipt including all hashes, tx receipts, and proof verification statuses.
+- `output/deployment_sepolia.json`: Optional Sepolia deployment and attestation metadata.
+- `output/verification_receipt_sepolia.json`: Optional Sepolia re-verification receipt.
+- `output/benchmark_results.json`: Raw benchmark environment, samples summary, and gas measurements.
+
+All generated outputs, credentials, caches, compiled contracts, and dependency directories are excluded from Git. `.env.example` contains placeholders only; `.env` is ignored.
+
+## Security Notes
+
+- Treat face images and raw search responses as sensitive local evidence. A live search sends the selected image to SerpApi.
+- Use only a dedicated testnet wallet for Sepolia. Transactions are signed locally; the private key is never logged or persisted by FaceTrace.
+- Review ignored `output/` receipts before sharing them because they contain the discovered public post URL and provenance metadata.
+- The bundled Hardhat accounts and keys are public development fixtures and must never receive real funds.
 
 ---
 
